@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "title": "Applications",
+  "state": "ok",
+  "icon": "sf:square.grid.2x2.fill",
+  "summary": "1 app · 1.5 GiB",
+  "capabilities": {
+    "stream": true,
+    "refresh": 5
+  },
+  "lines": [
+    {
+      "label": "Foreground apps",
+      "value": "1",
+      "state": "ok"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "apps_mem",
+      "label": "Apps memory",
+      "value": 1.5,
+      "unit": "GiB"
+    },
+    {
+      "id": "apps_cpu",
+      "label": "Apps CPU",
+      "value": 1.25,
+      "unit": "/ 8 cores",
+      "pct": 15.6
+    }
+  ],
+  "items": [
+    {
+      "id": "com.apple.Music",
+      "label": "Music",
+      "detail": "1 process",
+      "state": "ok",
+      "icon": "bundle:com.apple.Music",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 1.25,
+          "unit": "cores",
+          "pct": 15.6
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 1.5,
+          "unit": "GiB"
+        }
+      ],
+      "actions": [
+        {
+          "id": "open",
+          "label": "Open"
+        },
+        {
+          "id": "quit",
+          "label": "Quit",
+          "removes": true
+        },
+        {
+          "id": "force-quit",
+          "label": "Force quit",
+          "removes": true
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "activity",
+      "label": "Activity Monitor"
+    }
+  ]
+}

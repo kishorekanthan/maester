@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "title": "This Mac",
+  "state": "warn",
+  "icon": "sf:apple.logo",
+  "summary": "CPU 150% · GPU 99% · RAM 97% · data vol 98%",
+  "capabilities": {
+    "stream": true,
+    "refresh": 5
+  },
+  "lines": [
+    {
+      "label": "Memory pressure",
+      "value": "critical",
+      "state": "warn"
+    },
+    {
+      "label": "Wired · compressed",
+      "value": "5 · 4 GiB",
+      "state": "ok"
+    },
+    {
+      "label": "Data volume free",
+      "value": "10 GiB",
+      "state": "warn"
+    },
+    {
+      "label": "Load average",
+      "value": "9.10 8.40 7.90 · 8 cores",
+      "state": "ok"
+    },
+    {
+      "label": "Cores",
+      "value": "4P + 4E",
+      "state": "ok"
+    },
+    {
+      "label": "Uptime",
+      "value": "6 hours",
+      "state": "ok"
+    },
+    {
+      "label": "Battery",
+      "value": "8% · discharging",
+      "state": "warn"
+    },
+    {
+      "label": "Thermal",
+      "value": "throttled to 60%",
+      "state": "warn"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "cpu",
+      "label": "CPU",
+      "value": 150,
+      "unit": "%",
+      "pct": 100
+    },
+    {
+      "id": "gpu",
+      "label": "GPU",
+      "value": 99,
+      "unit": "%",
+      "pct": 99
+    },
+    {
+      "id": "mem",
+      "label": "Memory",
+      "value": 15.5,
+      "unit": "GiB",
+      "pct": 96.9
+    },
+    {
+      "id": "disk",
+      "label": "Data volume",
+      "value": 450,
+      "unit": "GiB",
+      "pct": 97.8
+    },
+    {
+      "id": "diskio",
+      "label": "Disk I/O",
+      "text": "180.00 MB/s  ·  us 70% sy 25%"
+    }
+  ],
+  "items": [
+    {
+      "id": "proc/Xcode",
+      "label": "Xcode",
+      "detail": "pid 5001",
+      "state": "ok",
+      "icon": "path:/Applications/Xcode.app/Contents/MacOS/Xcode",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 8,
+          "unit": "cores",
+          "pct": 100
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 60,
+          "unit": "%",
+          "pct": 60
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [
+    {
+      "id": "activity",
+      "label": "Activity Monitor"
+    }
+  ]
+}

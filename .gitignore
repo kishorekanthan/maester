@@ -1,0 +1,11 @@
+build/
+.DS_Store
+.scratch/
+__pycache__/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+.netrc

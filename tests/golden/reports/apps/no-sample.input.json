@@ -1,0 +1,15 @@
+{
+  "report": "apps_report.jq",
+  "argjson": {
+    "apps": [
+      { "name": "Terminal", "bundle": "com.apple.Terminal", "pid": 401, "pids": [401] }
+    ],
+    "before": {},
+    "after": { "401": { "cpu": 0, "mem": 1073741824 } },
+    "elapsed": 0,
+    "hangs": {},
+    "ncpu": 8,
+    "max_apps": 12
+  },
+  "arg": {}
+}

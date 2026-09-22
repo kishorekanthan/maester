@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "title": "Applications",
+  "state": "ok",
+  "icon": "sf:square.grid.2x2.fill",
+  "summary": "3 apps · 10 GiB",
+  "capabilities": {
+    "stream": true,
+    "refresh": 5
+  },
+  "lines": [
+    {
+      "label": "Foreground apps",
+      "value": "3",
+      "state": "ok"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "apps_mem",
+      "label": "Apps memory",
+      "value": 10,
+      "unit": "GiB"
+    },
+    {
+      "id": "apps_cpu",
+      "label": "Apps CPU",
+      "value": 2.4,
+      "unit": "/ 8 cores",
+      "pct": 30
+    }
+  ],
+  "items": [
+    {
+      "id": "com.apple.Safari",
+      "label": "Safari",
+      "detail": "2 processes",
+      "state": "ok",
+      "icon": "bundle:com.apple.Safari",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 1.6,
+          "unit": "cores",
+          "pct": 20
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 5,
+          "unit": "GiB"
+        }
+      ],
+      "actions": [
+        {
+          "id": "open",
+          "label": "Open"
+        },
+        {
+          "id": "quit",
+          "label": "Quit",
+          "removes": true
+        },
+        {
+          "id": "force-quit",
+          "label": "Force quit",
+          "removes": true
+        }
+      ]
+    },
+    {
+      "id": "com.apple.Mail",
+      "label": "Mail",
+      "detail": "1 process",
+      "state": "ok",
+      "icon": "bundle:com.apple.Mail",
+      "metrics": [
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 3,
+          "unit": "GiB"
+        }
+      ],
+      "actions": [
+        {
+          "id": "open",
+          "label": "Open"
+        },
+        {
+          "id": "quit",
+          "label": "Quit",
+          "removes": true
+        },
+        {
+          "id": "force-quit",
+          "label": "Force quit",
+          "removes": true
+        }
+      ]
+    },
+    {
+      "id": "com.apple.Notes",
+      "label": "Notes",
+      "detail": "1 process",
+      "state": "ok",
+      "icon": "bundle:com.apple.Notes",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 0.8,
+          "unit": "cores",
+          "pct": 10
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 2,
+          "unit": "GiB"
+        }
+      ],
+      "actions": [
+        {
+          "id": "open",
+          "label": "Open"
+        },
+        {
+          "id": "quit",
+          "label": "Quit",
+          "removes": true
+        },
+        {
+          "id": "force-quit",
+          "label": "Force quit",
+          "removes": true
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "activity",
+      "label": "Activity Monitor"
+    }
+  ]
+}

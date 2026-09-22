@@ -1,0 +1,84 @@
+name: check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          xcrun --show-sdk-version
+
+      - name: Install swiftlint
+        run: brew install swiftlint
+
+      - name: Run checks
+        run: ./check.sh
+
+      - name: Upload the built binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: maester-binary
+          path: build/Maester
+          if-no-files-found: error
+          retention-days: 7
+
+  floor-macos-15:
+    if: github.event_name != 'schedule'
+    needs: check
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          product="$(sw_vers -productVersion)"
+          case "$product" in
+            15.*) echo "floor runner is macOS $product" ;;
+            *) echo "expected a macOS 15 runner, got $product" >&2; exit 1 ;;
+          esac
+
+      - name: Download the macOS 26 build
+        uses: actions/download-artifact@v4
+        with:
+          name: maester-binary
+          path: build
+
+      - name: Restore the executable bit
+        run: chmod +x build/Maester
+
+      - name: Run the headless suite
+        run: ./scripts/run-tests.sh
+
+  check-macos-latest:
+    if: github.event_name == 'schedule'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          xcrun --show-sdk-version
+
+      - name: Install swiftlint
+        run: brew install swiftlint
+
+      - name: Run checks
+        run: ./check.sh

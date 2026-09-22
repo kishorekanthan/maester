@@ -1,0 +1,27 @@
+name: Provider request
+description: Suggest something Maester should be able to monitor.
+labels: ["provider"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should be monitored
+      description: What it is, and why it belongs in the menu bar rather than
+        a dedicated app.
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: What the report would look like
+      description: Roughly what state, lines, metrics, items, or actions this
+        would report. See CONTRACT.md for the shape of a report.
+    validations:
+      required: false
+  - type: textarea
+    id: existing
+    attributes:
+      label: Existing tool or API it would shell out to
+      description: If this wraps an existing CLI or daemon, name it.
+    validations:
+      required: false

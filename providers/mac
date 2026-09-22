@@ -1,0 +1,300 @@
+#!/usr/bin/env zsh
+set -uo pipefail
+export LC_ALL=C LANG=C
+
+SLOW_EVERY=5
+JQ=/usr/bin/jq
+SYSCTL=/usr/sbin/sysctl
+VM_STAT=/usr/bin/vm_stat
+IOREG=/usr/sbin/ioreg
+DF=/bin/df
+PMSET=/usr/bin/pmset
+UPTIME_BIN=/usr/bin/uptime
+PS=/bin/ps
+IOSTAT=/usr/sbin/iostat
+OPEN=/usr/bin/open
+AWK=/usr/bin/awk
+SED=/usr/bin/sed
+SELF_DIR="${0:A:h}"
+
+mac_ncpu() {
+  local n
+  n="$("$SYSCTL" -n hw.ncpu 2>/dev/null)"
+  [[ "$n" =~ ^[0-9]+$ ]] && [[ "$n" -gt 0 ]] && print -r -- "$n" || print -r -- 1
+}
+
+core_split_str() {
+  local ncpu="$1" p e
+  p="$("$SYSCTL" -n hw.perflevel0.logicalcpu 2>/dev/null)"
+  e="$("$SYSCTL" -n hw.perflevel1.logicalcpu 2>/dev/null)"
+  if [[ "$p" =~ ^[0-9]+$ ]] && [[ "$e" =~ ^[0-9]+$ ]]; then
+    print -r -- "$ncpu (${p}P + ${e}E)"
+  else
+    print -r -- "$ncpu"
+  fi
+}
+
+total_ram() {
+  local n
+  n="$("$SYSCTL" -n hw.memsize 2>/dev/null)"
+  [[ "$n" =~ ^[0-9]+$ ]] && print -r -- "$n" || print -r -- 0
+}
+
+vmstat_field() {
+  "$AWK" -F: -v want="$2" '$1==want{gsub(/[^0-9]/,"",$2); print $2}' <<< "$1"
+}
+
+vmstat_page_size() {
+  print -r -- "$1" | "$AWK" -F'page size of ' '/page size of/{n=$2; sub(/ bytes.*/,"",n); print n}'
+}
+
+pressure_name() {
+  case "$1" in
+    1) print -r -- "normal" ;;
+    2) print -r -- "warning" ;;
+    4) print -r -- "critical" ;;
+    *) print -r -- "unknown" ;;
+  esac
+}
+
+all_counts() {
+  local f
+  for f in "$@"; do
+    [[ "$f" =~ ^[0-9]+$ ]] || return 1
+  done
+  return 0
+}
+
+memory_from_vmstat() {
+  local out="$1" total="$2" level="$3" page anon purg wired comp pressure app used
+  page="$(vmstat_page_size "$out")"
+  anon="$(vmstat_field "$out" "Anonymous pages")"
+  purg="$(vmstat_field "$out" "Pages purgeable")"
+  wired="$(vmstat_field "$out" "Pages wired down")"
+  comp="$(vmstat_field "$out" "Pages occupied by compressor")"
+  if ! all_counts "$page" "$anon" "$purg" "$wired" "$comp" || [[ "$page" -le 0 ]]; then
+    print -u2 "vm_stat output did not carry the page counts this provider parses"
+    print -r -- null
+    return 1
+  fi
+  pressure="$(pressure_name "$level")"
+  app=$(( anon - purg )); [[ "$app" -lt 0 ]] && app=0
+  used=$(( (app + wired + comp) * page ))
+  "$JQ" -n --argjson used "$used" --argjson total "$total" --arg pressure "$pressure" \
+    --argjson compressed "$(( comp * page ))" --argjson wired "$(( wired * page ))" \
+    '{used:$used,total:$total,pressure:$pressure,compressed:$compressed,wired:$wired}'
+}
+
+memory_json() {
+  local total="$1" out level
+  out="$("$VM_STAT" 2>/dev/null)"
+  if [[ -z "$out" ]]; then
+    print -u2 "vm_stat produced no output"
+    print -r -- null
+    return 1
+  fi
+  level="$("$SYSCTL" -n kern.memorystatus_vm_pressure_level 2>/dev/null)"
+  [[ "$level" =~ ^[0-9]+$ ]] || level=0
+  memory_from_vmstat "$out" "$total" "$level"
+}
+
+gpu_percent() {
+  local out max
+  out="$("$IOREG" -r -d 1 -w 0 -c IOAccelerator 2>/dev/null)"
+  [[ -z "$out" ]] && { print -r -- null; return; }
+  max="$(print -r -- "$out" | grep -oE '"Device Utilization %"=[0-9]+' | "$AWK" -F= 'BEGIN{m=-1}{if($2+0>m)m=$2+0}END{if(m>=0)print m}')"
+  [[ -n "$max" ]] && print -r -- "$max" || print -r -- null
+}
+
+storage_json() {
+  local out row used avail total
+  out="$("$DF" -k /System/Volumes/Data 2>/dev/null)"
+  [[ -z "$out" ]] && { print -r -- null; return; }
+  row="$(print -r -- "$out" | "$SED" -n '2p')"
+  used="$(print -r -- "$row" | "$AWK" '{print $3}')"
+  avail="$(print -r -- "$row" | "$AWK" '{print $4}')"
+  [[ "$used" =~ ^[0-9]+$ ]] && [[ "$avail" =~ ^[0-9]+$ ]] || { print -r -- null; return; }
+  used=$(( used * 1024 )); avail=$(( avail * 1024 )); total=$(( used + avail ))
+  "$JQ" -n --argjson used "$used" --argjson avail "$avail" --argjson total "$total" \
+    '{used:$used,avail:$avail,total:$total,pct:(if $total>0 then ($used/$total*100) else 0 end)}'
+}
+
+battery_json() {
+  local out pct state
+  out="$("$PMSET" -g batt 2>/dev/null)"
+  if [[ -z "$out" ]]; then
+    print -r -- '{"pct":null,"state":null}'
+    return
+  fi
+  pct="$(print -r -- "$out" | "$AWK" 'match($0,/[0-9]+%/){print substr($0,RSTART,RLENGTH-1); exit}')"
+  if [[ "$out" == *"AC Power"* ]]; then
+    state="on AC"
+  else
+    state="on battery"
+  fi
+  if [[ "$out" == *"discharging"* ]]; then
+    state="discharging"
+  elif [[ "$out" == *"charging"* ]]; then
+    state="charging"
+  elif [[ "$out" == *"charged"* ]]; then
+    state="charged"
+  elif [[ "$out" == *"finishing charge"* ]]; then
+    state="finishing charge"
+  fi
+  if [[ -n "$pct" ]]; then
+    "$JQ" -n --argjson pct "$pct" --arg state "$state" '{pct:$pct, state:$state}'
+  else
+    "$JQ" -n --arg state "$state" '{pct:null, state:$state}'
+  fi
+}
+
+thermal_str() {
+  local out limit
+  out="$("$PMSET" -g therm 2>/dev/null)"
+  if [[ -z "$out" ]] || [[ "$out" == *"No thermal warning level has been recorded"* ]]; then
+    print -r -- "nominal"
+    return
+  fi
+  limit="$(print -r -- "$out" | "$AWK" '/CPU_Speed_Limit/{gsub(/[^0-9]/,"",$0); print $0; exit}')"
+  if [[ "$limit" =~ ^[0-9]+$ ]] && [[ "$limit" -lt 100 ]]; then
+    print -r -- "throttled to ${limit}%"
+  else
+    print -r -- "nominal"
+  fi
+}
+
+uptime_str() {
+  local out
+  out="$("$UPTIME_BIN" 2>/dev/null)"
+  [[ -z "$out" ]] && return 1
+  print -r -- "$out" | grep -qE 'up[[:space:]]+.+, [0-9]+ users?,' || return 1
+  print -r -- "$out" | "$SED" -E 's/.*up[[:space:]]+(.+), [0-9]+ users?,.*/\1/'
+}
+
+top_processes_json() {
+  local n="$1"
+  "$PS" -Ao pid,%cpu,%mem,comm -r 2>/dev/null | "$AWK" 'NR>1 {
+    k = split($0, a, " ");
+    pid=a[1]; cpu=a[2]; mem=a[3];
+    rest = a[4];
+    for (i=5;i<=k;i++) rest = rest " " a[i];
+    print pid "\t" cpu "\t" mem "\t" rest;
+  }' | "$JQ" -R -s --argjson n "$n" '
+    def basename: (split("/") | .[-1]);
+    [ split("\n")[] | select(length>0) | split("\t") |
+      { pid: .[0], cpu: (.[1]|tonumber), mem: (.[2]|tonumber), path: .[3] } ] |
+    map(select(.cpu >= 1.0)) |
+    reduce .[] as $p ({seen:{}, out:[]};
+      ($p.path | basename) as $name |
+      if (.seen[$name] // false) or ((.out|length) >= $n) then .
+      else { seen: (.seen + {($name): true}), out: (.out + [$p + {name: $name}]) }
+      end) | .out'
+}
+
+slow_state_json() {
+  local total mem disk gpu battery procs thermal uptime
+  total="$(total_ram)"
+  mem="$(memory_json "$total")" || true
+  disk="$(storage_json)"
+  gpu="$(gpu_percent)"
+  battery="$(battery_json)"
+  procs="$(top_processes_json 3)"
+  thermal="$(thermal_str)"
+  uptime="$(uptime_str)" || uptime=""
+  "$JQ" -n --argjson mem "$mem" --argjson disk "$disk" --argjson gpu "$gpu" \
+    --argjson battery "$battery" --argjson procs "$procs" --arg thermal "$thermal" \
+    --arg uptime "$uptime" \
+    '{mem:$mem, disk:$disk, gpu:$gpu, battery:$battery, procs:$procs, thermal:$thermal,
+      uptime: (if ($uptime|length)==0 then null else $uptime end)}'
+}
+
+iostat_sample_row() {
+  "$IOSTAT" -w 1 -c 2 2>/dev/null | grep -E '^[[:space:]]*[0-9.]+[[:space:]]' | tail -1
+}
+
+parse_iostat_row() {
+  local row="$1"
+  print -r -- "$row" | "$AWK" '{
+    if (NF < 6) { exit 1 }
+    us=$(NF-5); sy=$(NF-4); idle=$(NF-3);
+    load=$(NF-2)" "$(NF-1)" "$NF;
+    cpu=100-idle; if (cpu<0) cpu=0;
+    mbs=0;
+    for (i=3;i<NF-5;i+=3) mbs+=$i;
+    printf "%.4f|%s|%.2f MB/s  ·  us %d%% sy %d%%\n", cpu, load, mbs, us, sy;
+  }'
+}
+
+build_report() {
+  local slow_json="$1" cpu="$2" load="$3" diskio="$4" ncpu="$5" core_split="$6"
+  "$JQ" -n \
+    --argjson slow "$slow_json" \
+    --arg cpu_s "$cpu" \
+    --arg load_s "$load" \
+    --arg diskio_s "$diskio" \
+    --argjson ncpu "$ncpu" \
+    --arg core_split "$core_split" \
+    -f "$SELF_DIR/lib/mac_report.jq"
+}
+
+read_cpu_sample() {
+  local row line
+  row="$(iostat_sample_row)"
+  [[ -z "$row" ]] && return 1
+  line="$(parse_iostat_row "$row")"
+  [[ -z "$line" ]] && return 1
+  cpu_out="${line%%|*}"
+  local rest="${line#*|}"
+  load_out="${rest%%|*}"
+  diskio_out="${rest#*|}"
+}
+
+do_status() {
+  local ncpu core_split slow cpu_out="" load_out="" diskio_out=""
+  ncpu="$(mac_ncpu)"
+  core_split="$(core_split_str "$ncpu")"
+  read_cpu_sample || true
+  slow="$(slow_state_json)"
+  build_report "$slow" "$cpu_out" "$load_out" "$diskio_out" "$ncpu" "$core_split"
+}
+
+do_stream() {
+  trap 'exit 0' TERM
+  local ncpu core_split slow last_slow=0 now cpu_out load_out diskio_out
+  ncpu="$(mac_ncpu)"
+  core_split="$(core_split_str "$ncpu")"
+  while true; do
+    [[ "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" == "1" ]] && return 1
+    now="$(date +%s)"
+    if [[ "$last_slow" -eq 0 ]] || (( now - last_slow >= SLOW_EVERY )); then
+      slow="$(slow_state_json)"
+      last_slow="$now"
+    fi
+    cpu_out=""; load_out=""; diskio_out=""
+    read_cpu_sample || true
+    build_report "$slow" "$cpu_out" "$load_out" "$diskio_out" "$ncpu" "$core_split" | "$JQ" -c .
+    sleep 1
+  done
+}
+
+do_action() {
+  local action="$1"
+  case "$action" in
+    activity) "$OPEN" -a "Activity Monitor"; return $? ;;
+    *) print -u2 "unknown action '$action'"; return 2 ;;
+  esac
+}
+
+main() {
+  local cmd="${1:-status}"
+  case "$cmd" in
+    status) do_status; return 0 ;;
+    stream) do_stream; return $? ;;
+    do) do_action "${2:-}"; return $? ;;
+    *) print -u2 "usage: mac status|stream|do <action>"; return 2 ;;
+  esac
+}
+
+if [[ "${ZSH_EVAL_CONTEXT:-toplevel}" == toplevel ]]; then
+  main "$@"
+fi

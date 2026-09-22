@@ -1,0 +1,238 @@
+#!/usr/bin/env zsh
+set -uo pipefail
+export LC_ALL=C LANG=C
+
+SAMPLE_EVERY=5
+MAX_APPS=12
+JQ=/usr/bin/jq
+LSAPPINFO=/usr/bin/lsappinfo
+PS=/bin/ps
+SYSCTL=/usr/sbin/sysctl
+OPEN=/usr/bin/open
+OSASCRIPT=/usr/bin/osascript
+SELF_DIR="${0:A:h}"
+
+apps_ncpu() {
+  local n
+  n="$("$SYSCTL" -n hw.ncpu 2>/dev/null)"
+  [[ "$n" =~ ^[0-9]+$ ]] && [[ "$n" -gt 0 ]] && print -r -- "$n" || print -r -- 1
+}
+
+lsappinfo_parse() {
+  awk '
+    function flush() {
+      if (fg && name != "" && pid != "") {
+        pidlist = pid
+        if (coalition != "") {
+          n = split(coalition, arr, " ")
+          for (i = 1; i <= n; i++) if (arr[i] != pid) pidlist = pidlist " " arr[i]
+        }
+        printf "%s\t%s\t%s\t%s\t%s\n", name, asn, bundle, pid, pidlist
+      }
+      fg = 0; name = ""; asn = ""; bundle = ""; pid = ""; coalition = ""
+    }
+    /^[ \t]*[0-9]+\)[ \t]/ {
+      flush()
+      if (match($0, /"[^"]*"/)) name = substr($0, RSTART + 1, RLENGTH - 2)
+      if (match($0, /ASN:0x[0-9a-fx-]+/)) asn = substr($0, RSTART, RLENGTH)
+      next
+    }
+    /type="Foreground"/ { fg = 1 }
+    /bundleID="[^"]*"/ {
+      if (match($0, /bundleID="[^"]*"/)) bundle = substr($0, RSTART + 10, RLENGTH - 11)
+    }
+    /pid = [0-9]+/ {
+      if (match($0, /pid = [0-9]+/)) pid = substr($0, RSTART + 6, RLENGTH - 6)
+    }
+    /coalition:[ \t]*[0-9]+/ {
+      if (match($0, /\{[^}]*\}/)) coalition = substr($0, RSTART + 1, RLENGTH - 2)
+    }
+    END { flush() }
+  '
+}
+
+foreground_apps_json() {
+  local raw blocks
+  raw="$("$LSAPPINFO" list 2>/dev/null)"
+  if [[ -z "$raw" ]]; then
+    print -u2 "lsappinfo list produced no output"
+    return 1
+  fi
+  blocks="$(print -r -- "$raw" | lsappinfo_parse)"
+  if [[ -z "$blocks" ]]; then
+    print -u2 "lsappinfo output carried no foreground application — the parse did not match"
+    return 1
+  fi
+  print -r -- "$blocks" | "$JQ" -R -s '
+    [ split("\n")[] | select(length > 0) | split("\t") |
+      { name: .[0],
+        asn: (if .[1] == "" then null else .[1] end),
+        bundle: (if .[2] == "" then null else .[2] end),
+        pid: (.[3] | tonumber),
+        pids: ((.[4] // "") | split(" ") | map(select(length > 0) | tonumber)) } ]'
+}
+
+process_table_json() {
+  "$PS" -Ao pid=,time=,rss= 2>/dev/null | "$JQ" -R -s '
+    def secs: split(":") | map(tonumber) | reduce .[] as $p (0; . * 60 + $p);
+    [ split("\n")[] | select(length > 0) | gsub("^\\s+|\\s+$";"") | split("\\s+"; null) |
+      select(length == 3) |
+      { pid: .[0], cpu: (.[1] | secs), mem: ((.[2] | tonumber) * 1024) } ] |
+    map({ (.pid): { cpu, mem } }) | add // {}'
+}
+
+not_responding() {
+  local asn="$1"
+  [[ -z "$asn" ]] && return 1
+  "$LSAPPINFO" info -only StatusLabel "$asn" 2>/dev/null | grep -q "Not Responding"
+}
+
+hangs_json() {
+  local apps_json="$1"
+  local -a asns keys
+  asns=("${(@f)$(print -r -- "$apps_json" | "$JQ" -r '.[] | (.asn // "")')}")
+  keys=("${(@f)$(print -r -- "$apps_json" | "$JQ" -r '.[] | (.bundle // .name)')}")
+  local i pairs="[]"
+  for (( i = 1; i <= ${#keys[@]}; i++ )); do
+    if not_responding "${asns[$i]}"; then
+      pairs="$(print -r -- "$pairs" | "$JQ" --arg k "${keys[$i]}" '. + [$k]')"
+    fi
+  done
+  print -r -- "$pairs" | "$JQ" 'map({(.): true}) | add // {}'
+}
+
+build_report() {
+  local apps_json="$1" table_before="$2" table_after="$3" elapsed="$4" hangs="$5" ncpu="$6"
+  "$JQ" -n \
+    --argjson apps "$apps_json" \
+    --argjson before "$table_before" \
+    --argjson after "$table_after" \
+    --argjson elapsed "$elapsed" \
+    --argjson hangs "$hangs" \
+    --argjson ncpu "$ncpu" \
+    --argjson max_apps "$MAX_APPS" \
+    -f "$SELF_DIR/lib/apps_report.jq"
+}
+
+snapshot() {
+  local apps table1 table2 hangs
+  apps="$(foreground_apps_json)" || return 1
+  table1="$(process_table_json)"
+  sleep 0.5
+  table2="$(process_table_json)"
+  hangs="$(hangs_json "$apps")"
+  build_report "$apps" "$table1" "$table2" 0.5 "$hangs" "$(apps_ncpu)"
+}
+
+do_stream() {
+  trap 'exit 0' TERM
+  local previous="{}" apps table hangs now last=0 elapsed report
+  local ncpu
+  ncpu="$(apps_ncpu)"
+  while true; do
+    [[ "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" == "1" ]] && return 1
+    apps="$(foreground_apps_json)" || return 1
+    table="$(process_table_json)"
+    hangs="$(hangs_json "$apps")"
+    now="$(date +%s)"
+    if [[ "$last" -eq 0 ]]; then
+      elapsed=0
+    else
+      elapsed=$(( now - last ))
+    fi
+    report="$(build_report "$apps" "$previous" "$table" "$elapsed" "$hangs" "$ncpu")"
+    previous="$table"
+    last="$now"
+    print -r -- "$report" | "$JQ" -c .
+    sleep "$SAMPLE_EVERY"
+  done
+}
+
+find_app_json() {
+  local item="$1" apps
+  apps="$(foreground_apps_json)" || return 1
+  print -r -- "$apps" | "$JQ" -c --arg item "$item" \
+    '[ .[] | select((.bundle // .name) == $item) ] | .[0] // empty'
+}
+
+do_open() {
+  local item="$1"
+  [[ -z "$item" ]] && { print -u2 "open needs an app"; return 2 }
+  local app bundle name
+  app="$(find_app_json "$item")"
+  if [[ -n "$app" ]]; then
+    bundle="$(print -r -- "$app" | "$JQ" -r '.bundle // empty')"
+    name="$(print -r -- "$app" | "$JQ" -r '.name')"
+    if [[ -n "$bundle" ]]; then
+      "$OPEN" -b "$bundle"
+    else
+      "$OPEN" -a "$name"
+    fi
+  elif [[ "$item" =~ ^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+){2,}$ ]]; then
+    "$OPEN" -b "$item"
+  else
+    "$OPEN" -a "$item"
+  fi
+}
+
+do_quit() {
+  local item="$1"
+  [[ -z "$item" ]] && { print -u2 "quit needs an app"; return 2 }
+  local app bundle name target
+  app="$(find_app_json "$item")"
+  [[ -z "$app" ]] && { print -u2 "no running app '$item'"; return 1 }
+  bundle="$(print -r -- "$app" | "$JQ" -r '.bundle // empty')"
+  name="$(print -r -- "$app" | "$JQ" -r '.name')"
+  if [[ -n "$bundle" ]]; then
+    target="id \"$bundle\""
+  else
+    target="\"$name\""
+  fi
+  "$OSASCRIPT" -e "tell application $target to quit"
+}
+
+do_force_quit() {
+  local item="$1"
+  [[ -z "$item" ]] && { print -u2 "force-quit needs an app"; return 2 }
+  local app
+  app="$(find_app_json "$item")"
+  [[ -z "$app" ]] && { print -u2 "no running app '$item'"; return 1 }
+  local -a pidlist failed
+  pidlist=("${(@f)$(print -r -- "$app" | "$JQ" -r '.pids[]')}")
+  failed=()
+  local p
+  for p in "${pidlist[@]}"; do
+    [[ "$p" == "$$" ]] && continue
+    kill -9 "$p" 2>/dev/null || failed+=("$p")
+  done
+  if [[ "${#failed[@]}" -gt 0 ]]; then
+    print -u2 "could not kill pid(s) ${(j:, :)failed} — not yours"
+    return 1
+  fi
+  return 0
+}
+
+do_action() {
+  local action="$1" item="${2:-}"
+  case "$action" in
+    activity) "$OPEN" -a "Activity Monitor"; return $? ;;
+    open) do_open "$item"; return $? ;;
+    quit) do_quit "$item"; return $? ;;
+    force-quit) do_force_quit "$item"; return $? ;;
+    *) print -u2 "unknown action '$action'"; return 2 ;;
+  esac
+}
+
+main() {
+  local cmd="${1:-status}"
+  case "$cmd" in
+    status) snapshot; return $? ;;
+    stream) do_stream; return $? ;;
+    do) do_action "${2:-}" "${3:-}"; return $? ;;
+    *) print -u2 "usage: apps status|stream|do <action> [app]"; return 2 ;;
+  esac
+}
+
+if [[ "${ZSH_EVAL_CONTEXT:-toplevel}" == toplevel ]]; then
+  main "$@"
+fi

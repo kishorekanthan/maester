@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "title": "This Mac",
+  "state": "ok",
+  "icon": "sf:apple.logo",
+  "summary": "CPU 25% · GPU 12% · RAM 50% · data vol 56%",
+  "capabilities": {
+    "stream": true,
+    "refresh": 5
+  },
+  "lines": [
+    {
+      "label": "Memory pressure",
+      "value": "normal",
+      "state": "ok"
+    },
+    {
+      "label": "Wired · compressed",
+      "value": "2 · 1 GiB",
+      "state": "ok"
+    },
+    {
+      "label": "Data volume free",
+      "value": "200 GiB",
+      "state": "ok"
+    },
+    {
+      "label": "Load average",
+      "value": "1.20 1.10 0.95 · 8 cores",
+      "state": "ok"
+    },
+    {
+      "label": "Cores",
+      "value": "4P + 4E",
+      "state": "ok"
+    },
+    {
+      "label": "Uptime",
+      "value": "3 days",
+      "state": "ok"
+    },
+    {
+      "label": "Battery",
+      "value": "19% · charging",
+      "state": "ok"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "cpu",
+      "label": "CPU",
+      "value": 24.5,
+      "unit": "%",
+      "pct": 24.5
+    },
+    {
+      "id": "gpu",
+      "label": "GPU",
+      "value": 12,
+      "unit": "%",
+      "pct": 12
+    },
+    {
+      "id": "mem",
+      "label": "Memory",
+      "value": 8,
+      "unit": "GiB",
+      "pct": 50
+    },
+    {
+      "id": "disk",
+      "label": "Data volume",
+      "value": 256,
+      "unit": "GiB",
+      "pct": 55.5
+    },
+    {
+      "id": "diskio",
+      "label": "Disk I/O",
+      "text": "3.40 MB/s  ·  us 12% sy 6%"
+    }
+  ],
+  "items": [
+    {
+      "id": "proc/WindowServer",
+      "label": "WindowServer",
+      "detail": "pid 412",
+      "state": "ok",
+      "icon": "path:/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 2.5,
+          "unit": "cores",
+          "pct": 31.3
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 4.5,
+          "unit": "%",
+          "pct": 4.5
+        }
+      ],
+      "actions": []
+    },
+    {
+      "id": "proc/coreaudiod",
+      "label": "coreaudiod",
+      "detail": "pid 913",
+      "state": "ok",
+      "icon": "path:/usr/sbin/coreaudiod",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 0.4,
+          "unit": "cores",
+          "pct": 5
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 1.25,
+          "unit": "%",
+          "pct": 1.25
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [
+    {
+      "id": "activity",
+      "label": "Activity Monitor"
+    }
+  ]
+}

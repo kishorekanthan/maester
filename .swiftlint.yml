@@ -1,0 +1,7 @@
+only_rules:
+  - cyclomatic_complexity
+cyclomatic_complexity:
+  warning: 5
+  error: 5
+excluded:
+  - build

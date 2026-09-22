@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "title": "Applications",
+  "state": "warn",
+  "icon": "sf:square.grid.2x2.fill",
+  "summary": "1 app · 8 GiB · 1 not responding",
+  "capabilities": {
+    "stream": true,
+    "refresh": 5
+  },
+  "lines": [
+    {
+      "label": "Foreground apps",
+      "value": "1",
+      "state": "ok"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "apps_mem",
+      "label": "Apps memory",
+      "value": 8,
+      "unit": "GiB"
+    },
+    {
+      "id": "apps_cpu",
+      "label": "Apps CPU",
+      "value": 2,
+      "unit": "/ 8 cores",
+      "pct": 25
+    }
+  ],
+  "items": [
+    {
+      "id": "com.apple.dt.Xcode",
+      "label": "Xcode",
+      "detail": "not responding · 1 process",
+      "state": "warn",
+      "icon": "bundle:com.apple.dt.Xcode",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 2,
+          "unit": "cores",
+          "pct": 25
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 8,
+          "unit": "GiB"
+        }
+      ],
+      "actions": [
+        {
+          "id": "open",
+          "label": "Open"
+        },
+        {
+          "id": "quit",
+          "label": "Quit",
+          "removes": true
+        },
+        {
+          "id": "force-quit",
+          "label": "Force quit",
+          "removes": true
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "activity",
+      "label": "Activity Monitor"
+    }
+  ]
+}

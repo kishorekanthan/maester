@@ -1,0 +1,49 @@
+{
+  "report": "mac_report.jq",
+  "argjson": {
+    "slow": {
+      "mem": {
+        "total": 17179869184,
+        "used": 8589934592,
+        "wired": 2147483648,
+        "compressed": 1073741824,
+        "pressure": "normal"
+      },
+      "disk": {
+        "used": 274877906944,
+        "avail": 214748364800,
+        "pct": 55.5
+      },
+      "gpu": 12,
+      "battery": {
+        "pct": 19,
+        "state": "charging"
+      },
+      "procs": [
+        {
+          "pid": "412",
+          "cpu": 250,
+          "mem": 4.5,
+          "path": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "name": "WindowServer"
+        },
+        {
+          "pid": "913",
+          "cpu": 40,
+          "mem": 1.25,
+          "path": "/usr/sbin/coreaudiod",
+          "name": "coreaudiod"
+        }
+      ],
+      "thermal": "nominal",
+      "uptime": "3 days"
+    },
+    "ncpu": 8
+  },
+  "arg": {
+    "cpu_s": "24.5",
+    "load_s": "1.20 1.10 0.95",
+    "diskio_s": "3.40 MB/s  \u00b7  us 12% sy 6%",
+    "core_split": "4P + 4E"
+  }
+}

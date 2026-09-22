@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "title": "Applications",
+  "state": "ok",
+  "icon": "sf:square.grid.2x2.fill",
+  "summary": "1 app · 1 GiB",
+  "capabilities": {
+    "stream": true,
+    "refresh": 5
+  },
+  "lines": [
+    {
+      "label": "Foreground apps",
+      "value": "1",
+      "state": "ok"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "apps_mem",
+      "label": "Apps memory",
+      "value": 1,
+      "unit": "GiB"
+    }
+  ],
+  "items": [
+    {
+      "id": "com.apple.Terminal",
+      "label": "Terminal",
+      "detail": "1 process",
+      "state": "ok",
+      "icon": "bundle:com.apple.Terminal",
+      "metrics": [
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 1,
+          "unit": "GiB"
+        }
+      ],
+      "actions": [
+        {
+          "id": "open",
+          "label": "Open"
+        },
+        {
+          "id": "quit",
+          "label": "Quit",
+          "removes": true
+        },
+        {
+          "id": "force-quit",
+          "label": "Force quit",
+          "removes": true
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "activity",
+      "label": "Activity Monitor"
+    }
+  ]
+}

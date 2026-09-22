@@ -1,0 +1,42 @@
+{
+  "report": "mac_report.jq",
+  "argjson": {
+    "slow": {
+      "mem": {
+        "total": 17179869184,
+        "used": 16642998272,
+        "wired": 5368709120,
+        "compressed": 4294967296,
+        "pressure": "critical"
+      },
+      "disk": {
+        "used": 483183820800,
+        "avail": 10737418240,
+        "pct": 97.8
+      },
+      "gpu": 99,
+      "battery": {
+        "pct": 8,
+        "state": "discharging"
+      },
+      "procs": [
+        {
+          "pid": "5001",
+          "cpu": 800,
+          "mem": 60,
+          "path": "/Applications/Xcode.app/Contents/MacOS/Xcode",
+          "name": "Xcode"
+        }
+      ],
+      "thermal": "throttled to 60%",
+      "uptime": "6 hours"
+    },
+    "ncpu": 8
+  },
+  "arg": {
+    "cpu_s": "150.0",
+    "load_s": "9.10 8.40 7.90",
+    "diskio_s": "180.00 MB/s  ·  us 70% sy 25%",
+    "core_split": "4P + 4E"
+  }
+}

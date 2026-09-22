@@ -1,0 +1,42 @@
+{
+  "report": "mac_report.jq",
+  "argjson": {
+    "slow": {
+      "mem": {
+        "total": 17179869184,
+        "used": 4294967296,
+        "wired": 2147483648,
+        "compressed": 0,
+        "pressure": "normal"
+      },
+      "disk": {
+        "used": 107374182400,
+        "avail": 322122547200,
+        "pct": 25
+      },
+      "gpu": 5,
+      "battery": {
+        "pct": 62,
+        "state": "on AC"
+      },
+      "procs": [
+        {
+          "pid": "0",
+          "cpu": 120,
+          "mem": 3,
+          "path": "/kernel",
+          "name": "kernel_task"
+        }
+      ],
+      "thermal": "throttled to 80%",
+      "uptime": "2 hours"
+    },
+    "ncpu": 8
+  },
+  "arg": {
+    "cpu_s": "10",
+    "load_s": "0.50 0.40 0.30",
+    "diskio_s": "1.00 MB/s  ·  us 5% sy 2%",
+    "core_split": "4P + 4E"
+  }
+}

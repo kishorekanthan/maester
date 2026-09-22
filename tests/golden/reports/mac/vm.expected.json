@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "title": "This Mac",
+  "state": "ok",
+  "icon": "sf:apple.logo",
+  "summary": "CPU 7% · RAM 25% · data vol 33%",
+  "capabilities": {
+    "stream": true,
+    "refresh": 5
+  },
+  "lines": [
+    {
+      "label": "Memory pressure",
+      "value": "normal",
+      "state": "ok"
+    },
+    {
+      "label": "Wired · compressed",
+      "value": "1 · 0 GiB",
+      "state": "ok"
+    },
+    {
+      "label": "Data volume free",
+      "value": "100 GiB",
+      "state": "ok"
+    },
+    {
+      "label": "Load average",
+      "value": "0.30 0.25 0.20 · 4 cores",
+      "state": "ok"
+    },
+    {
+      "label": "Cores",
+      "value": "4 cores",
+      "state": "ok"
+    },
+    {
+      "label": "Uptime",
+      "value": "11 minutes",
+      "state": "ok"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "cpu",
+      "label": "CPU",
+      "value": 7,
+      "unit": "%",
+      "pct": 7
+    },
+    {
+      "id": "mem",
+      "label": "Memory",
+      "value": 2,
+      "unit": "GiB",
+      "pct": 25
+    },
+    {
+      "id": "disk",
+      "label": "Data volume",
+      "value": 50,
+      "unit": "GiB",
+      "pct": 33.3
+    }
+  ],
+  "items": [
+    {
+      "id": "proc/coreaudiod",
+      "label": "coreaudiod",
+      "detail": "pid 77",
+      "state": "ok",
+      "icon": "path:/usr/sbin/coreaudiod",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 1,
+          "unit": "cores",
+          "pct": 25
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 2,
+          "unit": "%",
+          "pct": 2
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [
+    {
+      "id": "activity",
+      "label": "Activity Monitor"
+    }
+  ]
+}

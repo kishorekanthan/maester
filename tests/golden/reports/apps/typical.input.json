@@ -1,0 +1,26 @@
+{
+  "report": "apps_report.jq",
+  "argjson": {
+    "apps": [
+      { "name": "Safari", "bundle": "com.apple.Safari", "pid": 101, "pids": [101, 102] },
+      { "name": "Notes", "bundle": "com.apple.Notes", "pid": 201, "pids": [201] },
+      { "name": "Mail", "bundle": "com.apple.Mail", "pid": 301, "pids": [301] }
+    ],
+    "before": {
+      "101": { "cpu": 100, "mem": 0 },
+      "102": { "cpu": 50, "mem": 0 },
+      "301": { "cpu": 500, "mem": 0 }
+    },
+    "after": {
+      "101": { "cpu": 112, "mem": 4294967296 },
+      "102": { "cpu": 54, "mem": 1073741824 },
+      "201": { "cpu": 8, "mem": 2147483648 },
+      "301": { "cpu": 5, "mem": 3221225472 }
+    },
+    "elapsed": 10,
+    "hangs": {},
+    "ncpu": 8,
+    "max_apps": 12
+  },
+  "arg": {}
+}

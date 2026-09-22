@@ -1,0 +1,260 @@
+#!/usr/bin/env zsh
+set -uo pipefail
+zmodload zsh/datetime
+
+DIR="${MAESTER_CONFIG_DIR:-$HOME/.config/maester}/providers"
+TIMEOUT=4
+JQ=/usr/bin/jq
+STAT=/usr/bin/stat
+MKTEMP=/usr/bin/mktemp
+SELF_DIR="${0:A:h}"
+LIB="$SELF_DIR/lib/doctor_validate.jq"
+
+if [[ -t 1 ]]; then
+  RED=$'\033[31m'; YEL=$'\033[33m'; GRN=$'\033[32m'; DIM=$'\033[2m'; OFF=$'\033[0m'
+else
+  RED=""; YEL=""; GRN=""; DIM=""; OFF=""
+fi
+
+typeset -ga ERR_LIST WARN_LIST
+typeset -g STATUS_JSON STATUS_DT STREAMED_COUNT
+
+collect_validation() {
+  local json="$1" where="$2" vres
+  vres="$("$JQ" -n --argjson d "$json" --arg where "$where" -f "$LIB" 2>/dev/null)" || return
+  local line
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && ERR_LIST+=("$line")
+  done < <("$JQ" -r '.errors[]?' <<< "$vres")
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && WARN_LIST+=("$line")
+  done < <("$JQ" -r '.warnings[]?' <<< "$vres")
+}
+
+check_perms() {
+  local provider_path="$1" dir="${provider_path:h}" self_uid
+  self_uid="$(id -u)"
+  local target what uid mode three group_digit other_digit
+  for target in "$dir" "$provider_path"; do
+    what="directory"; [[ "$target" == "$provider_path" ]] && what="file"
+    if ! mode="$("$STAT" -f '%u %A' "$target" 2>/dev/null)"; then
+      ERR_LIST+=("cannot stat $target")
+      continue
+    fi
+    uid="${mode%% *}"; mode="${mode#* }"
+    if [[ "$uid" != "$self_uid" ]]; then
+      ERR_LIST+=("$what $target is owned by uid $uid, not you")
+    fi
+    three="${mode: -3}"
+    group_digit="${three[2]}"
+    other_digit="${three[3]}"
+    if (( (group_digit & 2) != 0 )) || (( (other_digit & 2) != 0 )); then
+      ERR_LIST+=("$what $target is group/world-writable ($mode)")
+    fi
+  done
+  [[ -x "$provider_path" ]] || ERR_LIST+=("not executable")
+}
+
+run_status() {
+  local provider_path="$1" outfile errfile start dt pid timed_out=0 rc
+  outfile="$("$MKTEMP")"; errfile="$("$MKTEMP")"
+  start=$EPOCHREALTIME
+  "$provider_path" status >"$outfile" 2>"$errfile" &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    if (( EPOCHREALTIME - start >= TIMEOUT )); then
+      kill -9 "$pid" 2>/dev/null
+      timed_out=1
+      break
+    fi
+    sleep 0.05
+  done
+  wait "$pid" 2>/dev/null
+  rc=$?
+  dt=$(( EPOCHREALTIME - start ))
+  STATUS_DT="$dt"
+  STATUS_JSON=""
+  if (( timed_out )); then
+    ERR_LIST+=("status did not finish within ${TIMEOUT}s — Maester would show 'timed out'")
+    command rm -f "$outfile" "$errfile"
+    return 1
+  fi
+  if (( rc != 0 )); then
+    local errhead
+    errhead="$(head -c 200 "$errfile" | tr '\n' ' ')"
+    ERR_LIST+=("status exited $rc: $errhead")
+    command rm -f "$outfile" "$errfile"
+    return 1
+  fi
+  if [[ -s "$errfile" ]]; then
+    local firstline
+    firstline="$(head -1 "$errfile" | cut -c1-120)"
+    WARN_LIST+=("status wrote to stderr: $firstline")
+  fi
+  if ! "$JQ" -e . "$outfile" >/dev/null 2>"$errfile"; then
+    ERR_LIST+=("status stdout is not JSON: $(head -c 120 "$outfile" | tr '\n' ' ')")
+    command rm -f "$outfile" "$errfile"
+    return 1
+  fi
+  STATUS_JSON="$(cat "$outfile")"
+  command rm -f "$outfile" "$errfile"
+  if (( dt > TIMEOUT * 0.6 )); then
+    WARN_LIST+=("status took ${dt}s — uncomfortably close to the ${TIMEOUT}s timeout")
+  fi
+  collect_validation "$STATUS_JSON" "status"
+  return 0
+}
+
+run_stream() {
+  local provider_path="$1" lines_wanted="${2:-3}" tmp pid have start waited
+  tmp="$("$MKTEMP")"
+  "$provider_path" stream >"$tmp" 2>/dev/null &
+  pid=$!
+  start=$EPOCHREALTIME
+  while (( EPOCHREALTIME - start < 20 )); do
+    have="$(wc -l < "$tmp" 2>/dev/null | tr -d ' ')"
+    [[ -z "$have" ]] && have=0
+    (( have >= lines_wanted )) && break
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  kill -TERM "$pid" 2>/dev/null
+  waited=0
+  while kill -0 "$pid" 2>/dev/null && (( waited < 30 )); do
+    sleep 0.1
+    waited=$(( waited + 1 ))
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -9 "$pid" 2>/dev/null
+    WARN_LIST+=("stream ignored SIGTERM; Maester would SIGKILL it")
+  fi
+  wait "$pid" 2>/dev/null
+
+  local idx=0 got=0 l
+  while IFS= read -r l; do
+    [[ -z "$l" ]] && continue
+    idx=$(( idx + 1 ))
+    (( idx > lines_wanted )) && break
+    got="$idx"
+    if ! "$JQ" -e . >/dev/null 2>&1 <<< "$l"; then
+      ERR_LIST+=("stream line $idx is not JSON: $(print -r -- "$l" | cut -c1-120)")
+      continue
+    fi
+    collect_validation "$l" "stream line $idx"
+  done < "$tmp"
+  command rm -f "$tmp"
+  if (( got == 0 )); then
+    ERR_LIST+=("stream produced nothing in 20s")
+  fi
+  STREAMED_COUNT="$got"
+}
+
+is_backup() {
+  local n="$1"
+  case "$n" in
+    *~) return 0 ;;
+    *.bak|*.old|*.orig|*.save|*.swp|*.tmp|*.rej|*.dpkg-old) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+main() {
+  local want_stream=0
+  local -a names
+  local a
+  for a in "$@"; do
+    if [[ "$a" == "--stream" ]]; then
+      want_stream=1
+    elif [[ "$a" != -* ]]; then
+      names+=("$a")
+    fi
+  done
+
+  if [[ ! -d "$DIR" ]]; then
+    print -r -- "${RED}no provider directory at $DIR${OFF}"
+    return 1
+  fi
+
+  local -a found
+  local n
+  for n in "$DIR"/*(N); do
+    n="${n:t}"
+    [[ "$n" == .* ]] && continue
+    is_backup "$n" && continue
+    found+=("$n")
+  done
+  found=("${(@o)found}")
+
+  if (( ${#names[@]} > 0 )); then
+    local missing=0
+    for n in "${names[@]}"; do
+      if [[ ! " ${found[*]} " == *" $n "* ]]; then
+        print -r -- "${RED}no provider named $n in $DIR${OFF}"
+        missing=1
+      fi
+    done
+    local -a filtered
+    for n in "${found[@]}"; do
+      [[ " ${names[*]} " == *" $n "* ]] && filtered+=("$n")
+    done
+    found=("${filtered[@]}")
+    (( missing )) && return 1
+  fi
+
+  if (( ${#found[@]} == 0 )); then
+    print -r -- "${YEL}no providers in $DIR${OFF}"
+    return 1
+  fi
+
+  local bad=0 name provider_path mark detail m
+  for name in "${found[@]}"; do
+    provider_path="$DIR/$name"
+    ERR_LIST=(); WARN_LIST=(); STATUS_JSON=""; STATUS_DT=0; STREAMED_COUNT=0
+
+    check_perms "$provider_path"
+    if (( ${#ERR_LIST[@]} == 0 )); then
+      run_status "$provider_path"
+    fi
+
+    if (( want_stream )) && [[ -n "$STATUS_JSON" ]]; then
+      if "$JQ" -e '.capabilities.stream == true' >/dev/null 2>&1 <<< "$STATUS_JSON"; then
+        run_stream "$provider_path" 3
+      fi
+    fi
+
+    if (( ${#ERR_LIST[@]} > 0 )); then
+      mark="${RED}FAIL${OFF}"
+    elif (( ${#WARN_LIST[@]} > 0 )); then
+      mark="${YEL}WARN${OFF}"
+    else
+      mark="${GRN}ok${OFF}"
+    fi
+
+    detail=""
+    if [[ -n "$STATUS_JSON" ]]; then
+      detail="$("$JQ" -r --argjson dt "$STATUS_DT" '
+        "\(.state // "?")  " + "\(.title // "?") — \(.summary // "") · " +
+        "\((.lines // []) | length) line(s), \((.metrics // []) | length) metric(s), " +
+        "\((.items // []) | length) item(s), \((($dt * 1000) | round))ms"
+      ' <<< "$STATUS_JSON")"
+      detail="${DIM}${detail}${OFF}"
+    fi
+    printf '%-10s %s  %s\n' "$name" "$mark" "$detail"
+    if (( STREAMED_COUNT > 0 )); then
+      print -r -- "             ${DIM}${STREAMED_COUNT} stream line(s) validated${OFF}"
+    fi
+    for m in "${ERR_LIST[@]}"; do
+      print -r -- "             ${RED}✗ ${m}${OFF}"
+    done
+    for m in "${WARN_LIST[@]}"; do
+      print -r -- "             ${YEL}! ${m}${OFF}"
+    done
+    (( ${#ERR_LIST[@]} > 0 )) && bad=$(( bad + 1 ))
+  done
+
+  print -r --
+  print -r -- "${#found[@]} provider(s), $bad failing"
+  return $(( bad > 0 ? 1 : 0 ))
+}
+
+main "$@"

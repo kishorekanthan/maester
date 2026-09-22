@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "title": "This Mac",
+  "state": "warn",
+  "icon": "sf:apple.logo",
+  "summary": "CPU 10% · GPU 5% · RAM 25% · data vol 25%",
+  "capabilities": {
+    "stream": true,
+    "refresh": 5
+  },
+  "lines": [
+    {
+      "label": "Memory pressure",
+      "value": "normal",
+      "state": "ok"
+    },
+    {
+      "label": "Wired · compressed",
+      "value": "2 · 0 GiB",
+      "state": "ok"
+    },
+    {
+      "label": "Data volume free",
+      "value": "300 GiB",
+      "state": "ok"
+    },
+    {
+      "label": "Load average",
+      "value": "0.50 0.40 0.30 · 8 cores",
+      "state": "ok"
+    },
+    {
+      "label": "Cores",
+      "value": "4P + 4E",
+      "state": "ok"
+    },
+    {
+      "label": "Uptime",
+      "value": "2 hours",
+      "state": "ok"
+    },
+    {
+      "label": "Battery",
+      "value": "62% · on AC",
+      "state": "ok"
+    },
+    {
+      "label": "Thermal",
+      "value": "throttled to 80%",
+      "state": "warn"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "cpu",
+      "label": "CPU",
+      "value": 10,
+      "unit": "%",
+      "pct": 10
+    },
+    {
+      "id": "gpu",
+      "label": "GPU",
+      "value": 5,
+      "unit": "%",
+      "pct": 5
+    },
+    {
+      "id": "mem",
+      "label": "Memory",
+      "value": 4,
+      "unit": "GiB",
+      "pct": 25
+    },
+    {
+      "id": "disk",
+      "label": "Data volume",
+      "value": 100,
+      "unit": "GiB",
+      "pct": 25
+    },
+    {
+      "id": "diskio",
+      "label": "Disk I/O",
+      "text": "1.00 MB/s  ·  us 5% sy 2%"
+    }
+  ],
+  "items": [
+    {
+      "id": "proc/kernel_task",
+      "label": "kernel_task",
+      "detail": "pid 0",
+      "state": "ok",
+      "icon": "path:/kernel",
+      "metrics": [
+        {
+          "id": "cpu",
+          "label": "CPU",
+          "value": 1.2,
+          "unit": "cores",
+          "pct": 15
+        },
+        {
+          "id": "mem",
+          "label": "Mem",
+          "value": 3,
+          "unit": "%",
+          "pct": 3
+        }
+      ],
+      "actions": []
+    }
+  ],
+  "actions": [
+    {
+      "id": "activity",
+      "label": "Activity Monitor"
+    }
+  ]
+}

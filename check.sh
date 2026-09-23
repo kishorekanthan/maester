@@ -12,6 +12,10 @@ echo "== tests =="
 ./scripts/run-tests.sh
 
 echo
+echo "== ui tests =="
+./scripts/run-ui-tests.sh
+
+echo
 echo "== complexity gate =="
 if ! command -v swiftlint >/dev/null 2>&1; then
   echo "swiftlint is not installed." >&2

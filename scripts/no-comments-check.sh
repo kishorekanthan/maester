@@ -98,7 +98,7 @@ for f in "${shell_files[@]}"; do
   check_shell "$f"
 done
 
-for f in Sources/*.swift; do
+for f in Sources/*.swift tests/ui/*/*.swift; do
   check_swift "$f"
 done
 

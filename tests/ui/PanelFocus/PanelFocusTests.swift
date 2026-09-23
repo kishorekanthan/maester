@@ -60,6 +60,15 @@ final class PanelFocusTests: XCTestCase {
         return item
     }
 
+    private func clickStatusItem() throws {
+        let item = try statusItem()
+        let topEdge = CGVector(dx: 0.5, dy: -item.frame.minY / item.frame.height)
+        item.coordinate(withNormalizedOffset: topEdge).hover()
+        let hittable = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: item)
+        XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed, "the menu bar never showed the status item")
+        item.click()
+    }
+
     private func panel() -> XCUIElement {
         app.dialogs.firstMatch
     }
@@ -69,13 +78,22 @@ final class PanelFocusTests: XCTestCase {
     }
 
     private func openPanel() throws {
-        try statusItem().click()
-        XCTAssertTrue(panel().waitForExistence(timeout: 10), "the panel never opened")
+        XCTAssertTrue(try clickUntilPanelOpens(attempts: 3), "the panel never opened")
         XCTAssertTrue(row("alpha").waitForExistence(timeout: 10), "panel rows never appeared\n\(panel().debugDescription)")
     }
 
+    private func clickUntilPanelOpens(attempts: Int) throws -> Bool {
+        for _ in 0..<attempts {
+            try clickStatusItem()
+            if panel().waitForExistence(timeout: 4) {
+                return true
+            }
+        }
+        return false
+    }
+
     private func closePanel() throws {
-        try statusItem().click()
+        try clickStatusItem()
         let gone = NSPredicate(format: "exists == false")
         let wait = XCTNSPredicateExpectation(predicate: gone, object: panel())
         XCTAssertEqual(XCTWaiter.wait(for: [wait], timeout: 5), .completed, "panel did not close")

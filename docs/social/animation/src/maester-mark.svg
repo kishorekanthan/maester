@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <path id="gbody" transform="translate(385.3 491.5) rotate(12.0)" d="M-155.00 -63.00A155.00 155.00 0 0 1 155.00 -63.00L155.00 142.00A76.00 76.00 0 0 1 79.00 218.00L-79.00 218.00A76.00 76.00 0 0 1 -155.00 142.00Z"/>
+    <path id="cbody" transform="translate(639.9 545.6) rotate(3.94)" d="M-154.50 -63.25A154.50 154.50 0 0 1 154.50 -63.25L154.50 142.15A75.60 75.60 0 0 1 78.90 217.75L-78.90 217.75A75.60 75.60 0 0 1 -154.50 142.15Z"/>
+    <rect id="gslot" transform="translate(389.7 470.9) rotate(12.05)" x="-61.0" y="-103.0" width="122" height="206" rx="61.0"/>
+    <rect id="cslot" transform="translate(641.2 524.7) rotate(3.91)" x="-61.2" y="-103.25" width="122.4" height="206.5" rx="61.2"/>
+    <rect id="slash" transform="translate(206.1 570.0) rotate(11.99)" x="-2000" y="-13.1" width="4000" height="26.2"/>
+    <mask id="mg" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#fff"/><use href="#gslot" fill="#000"/><use href="#slash" fill="#000"/>
+    </mask>
+    <mask id="mc" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#fff"/><use href="#cslot" fill="#000"/><use href="#slash" fill="#000"/>
+      <use href="#gbody" fill="#000" stroke="#000" stroke-width="56.6" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect x="96" y="96" width="832" height="832" rx="224" fill="#12241c"/>
+  <use href="#cbody" fill="#f2efe6" mask="url(#mc)"/>
+  <use href="#gbody" fill="#4ade80" mask="url(#mg)"/>
+</svg>

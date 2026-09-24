@@ -22,8 +22,8 @@ jobs:
           swift --version
           xcrun --show-sdk-version
 
-      - name: Install swiftlint and xcodegen
-        run: brew install swiftlint xcodegen
+      - name: Install swiftlint
+        run: brew install swiftlint
 
       - name: Run checks
         run: ./check.sh
@@ -77,8 +77,8 @@ jobs:
           swift --version
           xcrun --show-sdk-version
 
-      - name: Install swiftlint and xcodegen
-        run: brew install swiftlint xcodegen
+      - name: Install swiftlint
+        run: brew install swiftlint
 
       - name: Run checks
         run: ./check.sh

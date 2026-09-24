@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="docs/social/animation/maester-loop.gif" alt="The Maester icon: two capsule-shaped eyes that breathe, blink and glance around" width="160">
+</p>
+
+<p align="center">
   <img src="docs/images/social-preview.png" alt="Maester: quit a hung app from the menu bar. CPU, GPU, memory and every app, live in your menu bar." width="100%">
 </p>
 
